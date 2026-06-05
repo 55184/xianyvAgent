@@ -1,0 +1,12 @@
+include README.md
+include requirements.txt
+include setup.py
+include start.bat
+include .env.example
+recursive-include prompts *example.txt
+recursive-include dashboard *.py *.html
+recursive-include utils *.py
+prune dist
+prune xianyvagent.egg-info
+prune data
+prune __pycache__
