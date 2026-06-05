@@ -20,6 +20,10 @@ def init_dashboard(context_manager):
     _context_manager = context_manager
 
 
+def get_bot_status():
+    """获取机器人状态"""
+    return _bot_status
+
 def set_bot_status(**kwargs):
     """更新机器人状态"""
     _bot_status.update(kwargs)
@@ -69,3 +73,37 @@ def api_intents():
 def run_dashboard(host='0.0.0.0', port=8899):
     """启动仪表板服务器"""
     app.run(host=host, port=port, debug=False, use_reloader=False)
+
+
+@app.route("/api/account")
+def api_account():
+    """获取当前账号信息"""
+    return jsonify({
+        "user_id": _bot_status.get("user_id", ""),
+        "nickname": _bot_status.get("nickname", ""),
+        "ws_connected": _bot_status.get("ws_connected", False)
+    })
+
+
+@app.route("/api/switch_account", methods=["POST"])
+def api_switch_account():
+    """切换账号 - 接收新Cookie并触发重连"""
+    data = request.get_json()
+    new_cookies = data.get("cookies", "").strip()
+    if not new_cookies:
+        return jsonify({"ok": False, "error": "Cookie不能为空"}), 400
+    # 保存到.env
+    import re
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            env_content = f.read()
+        env_content = re.sub(r"COOKIES_STR=.*", f"COOKIES_STR={new_cookies}", env_content)
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.write(env_content)
+        logger.info("Cookie已更新，触发重连...")
+        _bot_status["reconnect"] = True
+        _bot_status["new_cookies"] = new_cookies
+        return jsonify({"ok": True, "message": "Cookie已更新，正在重连..."})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500

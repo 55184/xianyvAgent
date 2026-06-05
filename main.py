@@ -14,7 +14,7 @@ import threading
 from utils.xianyu_utils import generate_mid, generate_uuid, trans_cookies, generate_device_id, decrypt
 from XianyuAgent import XianyuReplyBot
 from context_manager import ChatContextManager
-from dashboard.app import app, init_dashboard, set_bot_status, run_dashboard
+from dashboard.app import app, init_dashboard, set_bot_status, get_bot_status, run_dashboard
 
 
 class XianyuLive:
@@ -58,6 +58,7 @@ class XianyuLive:
         # 模拟人工输入配置
         self.simulate_human_typing = os.getenv("SIMULATE_HUMAN_TYPING", "False").lower() == "true"
         
+        set_bot_status(user_id=self.myid, nickname=f"闲鱼用户{self.myid}")
         # 代理配置
         self.proxy_enabled = os.getenv("PROXY_ENABLED", "false").lower() == "true"
         self.proxy_url = None
@@ -663,6 +664,20 @@ class XianyuLive:
                                 logger.info("检测到连接重启标志，准备重新建立连接...")
                                 break
                                 
+                            
+                            # 检查是否需要切换账号
+                            status = get_bot_status()
+                            if status.get("reconnect"):
+                                logger.info("检测到账号切换请求，准备重连...")
+                                self.cookies_str = status['new_cookies']
+                                self.cookies = trans_cookies(self.cookies_str)
+                                self.myid = self.cookies.get('unb', self.myid)
+                                self.xianyu.session.cookies.update(self.cookies)
+                                set_bot_status(reconnect=False, user_id=self.myid,
+                                    nickname=f"闲鱼用户{self.myid}")
+                                self.connection_restart_flag = True
+                                break
+                            
                             message_data = json.loads(message)
                             
                             # 处理心跳响应

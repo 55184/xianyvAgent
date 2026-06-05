@@ -53,6 +53,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .refresh-bar{text-align:center;padding:8px;font-size:12px;color:#b2bec3}
 .refresh-bar span{color:#667eea}
 @media(max-width:768px){.panels{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+.switch-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
+.switch-modal.show{display:flex}
+.switch-box{background:#fff;border-radius:12px;padding:24px;width:90%;max-width:500px}
+.switch-box h3{margin:0 0 12px;font-size:16px}
+.switch-box textarea{width:100%;height:80px;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:12px;resize:vertical;font-family:monospace}
+.switch-box .btns{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.switch-box button{padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-size:13px}
+.btn-confirm{background:#667eea;color:#fff}
+.btn-cancel{background:#eee;color:#333}
+.switch-msg{margin-top:8px;font-size:13px}
+.switch-msg.ok{color:#2e7d32}
+.switch-msg.err{color:#d32f2f}
 </style>
 </head>
 <body>
@@ -62,6 +74,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
   <div>
     <span class="status-dot" id="statusDot"></span>
     <span id="statusText" style="font-size:14px">连接中...</span>
+    <span style="margin-left:16px;font-size:13px;opacity:0.9" id="accountInfo"></span>
+    <button id="switchBtn" onclick="toggleSwitch()" style="margin-left:12px;padding:4px 12px;border:1px solid rgba(255,255,255,.5);border-radius:6px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:12px">切换账号</button>
   </div>
 </div>
 
@@ -179,8 +193,53 @@ function refresh() {
   document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
 }
 
-refresh();
+refresh(); fetchAccount();
+function fetchAccount() {
+  fetch('/api/account').then(function(r){return r.json()}).then(function(a){
+    document.getElementById('accountInfo').textContent = '账号: '+a.nickname+' ('+a.user_id+')';
+  });
+}
+
+function toggleSwitch() {
+  var m = document.getElementById('switchModal');
+  m.classList.toggle('show');
+  document.getElementById('switchMsg').textContent = '';
+}
+
+function doSwitch() {
+  var cookies = document.getElementById('cookieInput').value.trim();
+  if (!cookies) { document.getElementById('switchMsg').innerHTML='<span class="err">请输入Cookie</span>'; return; }
+  var msg = document.getElementById('switchMsg');
+  msg.innerHTML = '切换中...';
+  fetch('/api/switch_account', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cookies:cookies})
+  }).then(function(r){return r.json()}).then(function(d){
+    if (d.ok) {
+      msg.innerHTML = '<span class="ok">已切换，正在重连...</span>';
+      setTimeout(function(){ toggleSwitch(); location.reload(); }, 3000);
+    } else {
+      msg.innerHTML = '<span class="err">失败: '+d.error+'</span>';
+    }
+  }).catch(function(e){
+    msg.innerHTML = '<span class="err">网络错误</span>';
+  });
+}
+
 setInterval(refresh, 5000);
 </script>
+<div class="switch-modal" id="switchModal">
+  <div class="switch-box">
+    <h3>切换账号</h3>
+    <p style="font-size:12px;color:#636e72;margin-bottom:8px">粘贴新的闲鱼 Cookie（格式: key1=value1; key2=value2; ...）</p>
+    <textarea id="cookieInput" placeholder="unb=xxx; _m_h5_tk=xxx; ..."></textarea>
+    <div class="btns">
+      <button class="btn-cancel" onclick="toggleSwitch()">取消</button>
+      <button class="btn-confirm" onclick="doSwitch()">确认切换</button>
+    </div>
+    <div class="switch-msg" id="switchMsg"></div>
+  </div>
+</div>
 </body>
 </html>
