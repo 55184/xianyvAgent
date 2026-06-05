@@ -43,6 +43,11 @@ class XianyuApis:
             }
             logger.info(f"HTTP代理已启用: {proxy_url}")
     
+        else:
+            self.session.proxies = {}
+            self.session.trust_env = False
+            for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]:
+                os.environ.pop(key, None)
         
     def clear_duplicate_cookies(self):
         """清理重复的cookies"""

@@ -2,15 +2,21 @@ import re
 from typing import List, Dict
 import os
 from openai import OpenAI
+import httpx
 from loguru import logger
 
 
 class XianyuReplyBot:
     def __init__(self):
         # 初始化OpenAI客户端
+        # 清除系统代理（避免 httpx 被无效代理劫持）
+        for k in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]:
+            os.environ[k] = ""
+        http_client = httpx.Client(transport=httpx.HTTPTransport(retries=1), trust_env=False)
         self.client = OpenAI(
             api_key=os.getenv("API_KEY"),
-            base_url=os.getenv("MODEL_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            base_url=os.getenv("MODEL_BASE_URL", "https://tokenhub.tencentmaas.com/v1"),
+            http_client=http_client,
         )
         self._init_system_prompts()
         self._init_agents()

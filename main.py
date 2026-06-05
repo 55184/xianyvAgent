@@ -69,6 +69,10 @@ class XianyuLive:
             os.environ["HTTP_PROXY"] = self.proxy_url
             os.environ["HTTPS_PROXY"] = self.proxy_url
             os.environ["WS_PROXY"] = self.proxy_url
+        else:
+            # 直连模式：清除系统残留代理
+            for key in ["HTTP_PROXY", "HTTPS_PROXY", "WS_PROXY", "http_proxy", "https_proxy"]:
+                os.environ.pop(key, None)
 
     async def refresh_token(self):
         """刷新token"""
