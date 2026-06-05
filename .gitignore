@@ -1,0 +1,46 @@
+# ============================================
+# 分层打包：以下文件仅本地保留，不提交到Git
+# ============================================
+
+# Layer 1 - 核心机密（绝不提交）
+.env
+
+# Layer 2 - 自定义提示词（业务策略，仅本地）
+prompts/classify_prompt.txt
+prompts/price_prompt.txt
+prompts/tech_prompt.txt
+prompts/default_prompt.txt
+
+# Layer 3 - 运行时数据
+data/
+*.db
+*.sqlite3
+*.sqlite
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 虚拟环境
+venv/
+ENV/
+.venv/
+
+# 构建产物
+build/
+dist/
+*.egg-info/
+*.egg
+
+# 日志与临时文件
+logs/
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
