@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闲鱼AI客服 - 商家仪表板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f6fa;color:#2d3436;min-height:100vh}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.header h1{font-size:20px;font-weight:600}
+.status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.status-dot.green{background:#00e676;box-shadow:0 0 6px #00e676}
+.status-dot.red{background:#ff5252;box-shadow:0 0 6px #ff5252}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card-label{font-size:13px;color:#636e72;margin-bottom:6px}
+.card-value{font-size:28px;font-weight:700;color:#2d3436}
+.card-sub{font-size:12px;color:#b2bec3;margin-top:4px}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden}
+.panel-header{padding:16px 20px;border-bottom:1px solid #eee;font-weight:600;font-size:15px}
+.chat-list{max-height:500px;overflow-y:auto}
+.chat-item{padding:12px 20px;border-bottom:1px solid #f1f2f6;cursor:pointer;transition:background .15s}
+.chat-item:hover{background:#f8f9ff}
+.chat-item.active{background:#eef0ff}
+.chat-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.chat-id{font-size:12px;color:#636e72;font-family:monospace}
+.chat-badges{display:flex;gap:6px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+.badge.user{background:#dff9fb;color:#0984e3}
+.badge.assistant{background:#e8f5e9;color:#2e7d32}
+.badge.bargain{background:#fff3e0;color:#e65100}
+.chat-preview{font-size:13px;color:#636e72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-time{font-size:11px;color:#b2bec3}
+.chat-detail{padding:16px 20px;max-height:400px;overflow-y:auto;background:#fafbfc}
+.msg-bubble{margin-bottom:12px;display:flex;flex-direction:column}
+.msg-bubble.user{align-items:flex-end}
+.msg-bubble.assistant{align-items:flex-start}
+.msg-content{padding:10px 14px;border-radius:14px;max-width:85%;font-size:14px;line-height:1.5;word-break:break-word}
+.msg-bubble.user .msg-content{background:#667eea;color:#fff;border-bottom-right-radius:4px}
+.msg-bubble.assistant .msg-content{background:#fff;color:#2d3436;border:1px solid #e0e0e0;border-bottom-left-radius:4px}
+.msg-time{font-size:10px;color:#b2bec3;margin-top:3px;padding:0 4px}
+.intent-chart{display:flex;align-items:flex-end;gap:40px;padding:20px;justify-content:center}
+.intent-bar{display:flex;flex-direction:column;align-items:center;gap:8px}
+.intent-bar-fill{width:56px;border-radius:8px 8px 0 0;transition:height .4s;min-height:4px}
+.intent-bar-fill.bargain{background:linear-gradient(180deg,#f0932b,#e65100)}
+.intent-bar-fill.other{background:linear-gradient(180deg,#74b9ff,#0984e3)}
+.intent-label{font-size:13px;color:#636e72}
+.intent-count{font-size:18px;font-weight:700}
+.empty-state{text-align:center;padding:40px;color:#b2bec3;font-size:14px}
+.refresh-bar{text-align:center;padding:8px;font-size:12px;color:#b2bec3}
+.refresh-bar span{color:#667eea}
+@media(max-width:768px){.panels{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🐟 闲鱼AI客服仪表板</h1>
+  <div>
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText" style="font-size:14px">连接中...</span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">📊 累计消息</div>
+      <div class="card-value" id="totalMsgs">-</div>
+    </div>
+    <div class="card">
+      <div class="card-label">💬 活跃会话</div>
+      <div class="card-value" id="totalChats">-</div>
+    </div>
+    <div class="card">
+      <div class="card-label">🔪 砍价次数</div>
+      <div class="card-value" id="totalBargains">-</div>
+    </div>
+    <div class="card">
+      <div class="card-label">⏱ 运行时长</div>
+      <div class="card-value" id="runtime">-</div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-header">📋 会话列表 <span id="chatCount" style="font-weight:400;color:#b2bec3;font-size:13px"></span></div>
+      <div class="chat-list" id="chatList">
+        <div class="empty-state">暂无对话数据</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">💬 对话详情</div>
+      <div class="chat-detail" id="chatDetail">
+        <div class="empty-state">点击左侧会话查看详情</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="refresh-bar">每 <span>5</span> 秒自动刷新 · <span id="lastRefresh"></span></div>
+</div>
+
+<script>
+let currentChatId = null;
+let totalChatCount = 0;
+
+function formatRuntime(secs) {
+  if (secs < 60) return secs + '秒';
+  var m = Math.floor(secs / 60);
+  if (m < 60) return m + '分钟';
+  var h = Math.floor(m / 60); m %= 60;
+  return h + '小时' + m + '分';
+}
+
+function timeAgo(ts) {
+  var diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff/60) + '分钟前';
+  if (diff < 86400) return Math.floor(diff/3600) + '小时前';
+  return Math.floor(diff/86400) + '天前';
+}
+
+function updateStatus(stats) {
+  var dot = document.getElementById('statusDot');
+  var txt = document.getElementById('statusText');
+  if (stats.running && stats.ws_connected) {
+    dot.className = 'status-dot green';
+    txt.textContent = '运行中';
+  } else if (stats.running) {
+    dot.className = 'status-dot red';
+    txt.textContent = 'WS断开';
+  } else {
+    dot.className = 'status-dot red';
+    txt.textContent = '已停止';
+  }
+  document.getElementById('totalMsgs').textContent = stats.total_messages || 0;
+  document.getElementById('totalChats').textContent = stats.total_chats || 0;
+  document.getElementById('totalBargains').textContent = stats.total_bargains || 0;
+  document.getElementById('runtime').textContent = formatRuntime(stats.runtime || 0);
+}
+
+function renderChats(chats) {
+  var list = document.getElementById('chatList');
+  document.getElementById('chatCount').textContent = chats.length + '个会话';
+  if (!chats.length) { list.innerHTML = '<div class="empty-state">暂无对话数据</div>'; return; }
+  list.innerHTML = chats.map(function(c,i) {
+    var roleBadge = c.role === 'user' ? '<span class="badge user">用户</span>' : '<span class="badge assistant">AI</span>';
+    var bargainBadge = c.bargain_count > 0 ? '<span class="badge bargain">砍价'+c.bargain_count+'</span>' : '';
+    var active = c.chat_id === currentChatId ? ' active' : '';
+    return '<div class="chat-item'+active+'" onclick="loadDetail(\''+c.chat_id+'\',this)" data-chatid="'+c.chat_id+'">'+
+      '<div class="chat-meta"><span class="chat-id">#'+c.chat_id.slice(-8)+'</span><div class="chat-badges">'+bargainBadge+roleBadge+'</div></div>'+
+      '<div class="chat-preview">'+escHtml(c.last_msg)+'</div>'+
+      '<div class="chat-time">'+c.msg_count+'条 · '+timeAgo(c.timestamp)+'</div></div>';
+  }).join('');
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function loadDetail(chatId, el) {
+  currentChatId = chatId;
+  document.querySelectorAll('.chat-item').forEach(function(i){i.classList.remove('active')});
+  if (el) el.classList.add('active');
+  fetch('/api/chat/'+chatId).then(function(r){return r.json()}).then(function(msgs){
+    var detail = document.getElementById('chatDetail');
+    if (!msgs.length) { detail.innerHTML = '<div class="empty-state">暂无消息</div>'; return; }
+    detail.innerHTML = msgs.map(function(m){
+      return '<div class="msg-bubble '+m.role+'"><div class="msg-content">'+escHtml(m.content)+'</div><div class="msg-time">'+timeAgo(m.timestamp)+'</div></div>';
+    }).join('');
+    detail.scrollTop = detail.scrollHeight;
+  });
+}
+
+function refresh() {
+  fetch('/api/stats').then(function(r){return r.json()}).then(updateStatus).catch(function(){});
+  fetch('/api/chats').then(function(r){return r.json()}).then(renderChats).catch(function(){});
+  document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

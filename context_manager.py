@@ -307,3 +307,107 @@ class ChatContextManager:
             return 0
         finally:
             conn.close() 
+
+    def get_dashboard_stats(self):
+        """获取仪表板统计数据"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT COUNT(*) FROM messages")
+            total_msgs = cursor.fetchone()[0] or 0
+            
+            cursor.execute("SELECT COUNT(DISTINCT chat_id) FROM messages")
+            total_chats = cursor.fetchone()[0] or 0
+            
+            cursor.execute("SELECT SUM(count) FROM chat_bargain_counts")
+            total_bargains = cursor.fetchone()[0] or 0
+            
+            cursor.execute("SELECT COUNT(*) FROM messages WHERE role = 'user' AND timestamp > datetime('now', '-1 day')")
+            today_msgs = cursor.fetchone()[0] or 0
+            
+            return {
+                "total_messages": total_msgs,
+                "total_chats": total_chats,
+                "total_bargains": total_bargains,
+                "today_messages": today_msgs
+            }
+        except Exception as e:
+            logger.error(f"获取统计数据出错: {e}")
+            return {"total_messages": 0, "total_chats": 0, "total_bargains": 0, "today_messages": 0}
+        finally:
+            conn.close()
+
+    def get_chat_list(self):
+        """获取所有会话列表及最后一条消息"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT m.chat_id, m.content, m.role, m.timestamp,
+                       (SELECT COUNT(*) FROM messages WHERE chat_id = m.chat_id) as msg_count,
+                       COALESCE((SELECT count FROM chat_bargain_counts WHERE chat_id = m.chat_id), 0) as bargain_count
+                FROM messages m
+                WHERE m.id IN (SELECT MAX(id) FROM messages GROUP BY chat_id)
+                ORDER BY m.timestamp DESC
+                LIMIT 50
+            """)
+            rows = cursor.fetchall()
+            return [{
+                "chat_id": r[0],
+                "last_msg": r[1][:50] if r[1] else "",
+                "role": r[2],
+                "timestamp": r[3],
+                "msg_count": r[4],
+                "bargain_count": r[5]
+            } for r in rows]
+        except Exception as e:
+            logger.error(f"获取会话列表出错: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def get_chat_detail(self, chat_id):
+        """获取指定会话的完整对话"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT role, content, timestamp FROM messages WHERE chat_id = ? ORDER BY timestamp ASC LIMIT 100",
+                (chat_id,)
+            )
+            rows = cursor.fetchall()
+            return [{
+                "role": r[0],
+                "content": r[1],
+                "timestamp": r[2]
+            } for r in rows]
+        except Exception as e:
+            logger.error(f"获取对话详情出错: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def get_intent_stats(self):
+        """获取意图分布统计（基于议价次数和对话数）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT COUNT(DISTINCT chat_id) FROM chat_bargain_counts WHERE count > 0")
+            bargain_chats = cursor.fetchone()[0] or 0
+            cursor.execute("SELECT COUNT(DISTINCT chat_id) FROM messages")
+            total = cursor.fetchone()[0] or 1
+            
+            cursor.execute("SELECT COUNT(DISTINCT chat_id) FROM messages WHERE chat_id NOT IN (SELECT chat_id FROM chat_bargain_counts)")
+            other_chats = cursor.fetchone()[0] or 0
+            
+            return {
+                "bargain": bargain_chats,
+                "other": other_chats,
+                "total": total
+            }
+        except Exception as e:
+            logger.error(f"获取意图统计出错: {e}")
+            return {"bargain": 0, "other": 0, "total": 0}
+        finally:
+            conn.close()
+            conn.close() 

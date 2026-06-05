@@ -9,11 +9,12 @@ from dotenv import load_dotenv, set_key
 from XianyuApis import XianyuApis
 import sys
 import random
-
+import threading
 
 from utils.xianyu_utils import generate_mid, generate_uuid, trans_cookies, generate_device_id, decrypt
 from XianyuAgent import XianyuReplyBot
 from context_manager import ChatContextManager
+from dashboard.app import app, init_dashboard, set_bot_status, run_dashboard
 
 
 class XianyuLive:
@@ -638,6 +639,7 @@ class XianyuLive:
 
                 async with websockets.connect(self.base_url, extra_headers=headers) as websocket:
                     self.ws = websocket
+                    set_bot_status(ws_connected=True)
                     await self.init(websocket)
                     
                     # 初始化心跳时间
@@ -689,6 +691,7 @@ class XianyuLive:
 
             except websockets.exceptions.ConnectionClosed:
                 logger.warning("WebSocket连接已关闭")
+                set_bot_status(ws_connected=False)
                 
             except Exception as e:
                 logger.error(f"连接发生错误: {e}")
@@ -782,9 +785,16 @@ if __name__ == '__main__':
     
     # 交互式检查并补全配置
     check_and_complete_env()
-    
     cookies_str = os.getenv("COOKIES_STR")
     bot = XianyuReplyBot()
     xianyuLive = XianyuLive(cookies_str)
+    
+    # 启动可视化仪表板
+    init_dashboard(xianyuLive.context_manager)
+    set_bot_status(running=True, start_time=time.time())
+    dashboard_port = int(os.getenv("DASHBOARD_PORT", "8899"))
+    threading.Thread(target=run_dashboard, args=("0.0.0.0", dashboard_port), daemon=True).start()
+    logger.info(f"仪表板已启动: http://localhost:{dashboard_port}")
+    
     # 常驻进程
     asyncio.run(xianyuLive.main())
