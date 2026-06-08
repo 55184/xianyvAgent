@@ -1,6 +1,2 @@
-openai>=1.65.5
-websockets>=12.0
-loguru>=0.7.0
-python-dotenv>=1.0.0
-requests>=2.32.0
-flask>=3.0.0
+openai>=1.65.5websockets>=12.0loguru>=0.7.0python-dotenv>=1.0.0requests>=2.32.0flask>=3.0.0
+httpx>=0.27.0

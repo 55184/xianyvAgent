@@ -89,7 +89,7 @@ class XianyuLive:
                 logger.info("Token刷新成功")
                 return new_token
             else:
-                logger.error(f"Token刷新失败: {token_result}")
+                logger.error("Token刷新失败")
                 return None
                 
         except Exception as e:
